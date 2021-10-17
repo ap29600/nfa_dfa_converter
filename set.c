@@ -1,17 +1,11 @@
 #include "set.h"
 #include <stdio.h>
+#include <assert.h>
 
 #define UNIMPLEMENTED {fprintf(stderr, "UNIMPLEMENTED: %s\n", __func__); exit(1);}
 
-#define assert(X) do{ \
-    if(!(X)) { \
-        printf("assertion failed: (" #X ")\n" );\
-        exit(1);\
-    } \
-} while(0);
-
-
 void set_insert(set *s, state_id_t id) {
+    assert(s);
     assert(!set_find(s, id));
     if (s->capacity <= s->size) {
         s->capacity *= 2;

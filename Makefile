@@ -12,4 +12,4 @@ pics: initial.dot intermediate.dot minimised.dot
 	./dfa
 
 dfa: *.c
-	gcc -O3 -march=native *.c -o dfa
+	gcc -ggdb *.c -o dfa
