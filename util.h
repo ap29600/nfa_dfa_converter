@@ -19,6 +19,8 @@ typedef struct {
   int (*compar)(const void *, const void *);
 } vector;
 
+typedef unsigned short state_id_t;
+
 #define VEC(T, C, ...)                                                         \
   ({                                                                           \
     const T tmp_arr[] = {__VA_ARGS__};                                         \
@@ -46,6 +48,8 @@ typedef struct {
           (uintptr_t)P < (uintptr_t)(V)->ptr + (V)->size * (V)->elem_size;     \
           *(uintptr_t*)&P += (V)->elem_size)
 
+int st_cmp(const void*a, const void*b);
+
 void vec_sort(vector *vec);
 void *vec_find_sorted(const vector *vec, const void *element);
 void *vec_find(const vector *vec, const void *element);
@@ -53,7 +57,9 @@ void vec_insert_sorted(vector *vec, const void *element);
 void vec_insert(vector *vec, const void *element);
 void vec_pop_back(vector *vec, void *dest);
 void destroy(vector*v);
-size_t index_of(vector *vec, void *element);
-void* elem_at(vector *vec, size_t index);
+size_t index_of(const vector *vec, void *element);
+void* elem_at(const vector *vec, size_t index);
+vector vec_iota(state_id_t start, state_id_t end);
+vector vec_complement(const vector *source, const vector *exclude);
 
 #endif // UTIL_H_

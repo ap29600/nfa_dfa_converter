@@ -1,7 +1,6 @@
 #ifndef AUTOMATA_H_
 #define AUTOMATA_H_
 #include <stdlib.h>
-#include "set.h"
 #include "util.h"
 
 typedef struct {
@@ -38,18 +37,18 @@ typedef struct {
     state_id_t(*epsilon)[2]; 
 
     transition_matrix T;
-    set accepting_states;
+    vector accepting_states;
 } nfa;
 
 typedef struct {
     state_id_t n_states;
     vector t_matrix;
-    set accepting_states;
+    vector accepting_states;
 } dfa;
 
 void transition_matrix_insert(vector*T, state_id_t start, unsigned char c, state_id_t dest);
-set eps_closure(nfa *N, const set *in);
-set delta(nfa *N, set *q, unsigned char c);
+vector eps_closure(nfa *N, const vector *in);
+vector delta(nfa *N, vector *q, unsigned char c);
 dfa *to_dfa(nfa *N);
 
 dfa *minimize(dfa *D);

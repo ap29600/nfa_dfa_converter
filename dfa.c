@@ -1,11 +1,10 @@
 #include "automata.h"
-#include "set.h"
 #include "util.h"
 // #include "vec.h"
 #include <stdio.h>
 #include <stdlib.h>
 
-#define FIRST_EXAMPLE_
+// #define FIRST_EXAMPLE_
 
 #ifdef FIRST_EXAMPLE_
 #define A_STATES 11
@@ -22,6 +21,7 @@ state_id_t(delta_A[A_STATES])[256] = {
     [9] = {0},         
     [10] = {0},
 };
+
 state_id_t(epsilon_A[A_STATES])[2] = {
     [0] = {0, 0}, 
     [1] = {0, 0},  
@@ -37,11 +37,18 @@ state_id_t(epsilon_A[A_STATES])[2] = {
 };
 
 nfa A = {.n_states = A_STATES,
-         .accepting_states = (set){.ids = (state_id_t[]){10}, .size = 1},
+         .accepting_states = (vector){
+             .elem_size = sizeof(state_id_t),
+             .size = 1,
+             .cap = 1,
+             .ptr = (state_id_t[]){10},
+             .compar = st_cmp
+         },
          .T.data = delta_A,
          .T.size = A_STATES,
          .T.capacity = A_STATES,
-         .epsilon = epsilon_A};
+         .epsilon = epsilon_A
+};
 
 #else
 
@@ -75,7 +82,13 @@ state_id_t(epsilon_A[A_STATES])[2] = {
 };
 
 nfa A = {.n_states = A_STATES,
-         .accepting_states = (set){.ids = (state_id_t[]){6, 10}, .size = 2},
+         .accepting_states = (vector){
+             .elem_size = sizeof(state_id_t),
+             .size = 2,
+             .cap = 2,
+             .ptr = (state_id_t[]){6, 10},
+             .compar = st_cmp
+         },
          .T.data = delta_A,
          .T.size = A_STATES,
          .T.capacity = A_STATES,
@@ -88,9 +101,8 @@ void dump_nfa_to_dot(nfa *N, const char *filename) {
   assert(N);
   fprintf(out, "digraph {\n");
   fprintf(out, "  node [shape = circle]\n");
-  for (size_t i = 0; i < N->accepting_states.size; i++) {
-    fprintf(out, " d%u [shape = doublecircle];\n", N->accepting_states.ids[i]);
-  }
+  ITER(state_id_t, id, &N->accepting_states)
+    fprintf(out, " d%u [shape = doublecircle];\n", *id);
   for (size_t i = 0; i < N->T.capacity; i++) {
     for (unsigned c = 0; c < 256; c++) {
       if (N->T.data[i][c] > 0) {
@@ -114,9 +126,9 @@ void dump_dfa_to_dot(dfa *D, const char *filename) {
   assert(D);
   fprintf(out, "digraph {\n");
   fprintf(out, "  node [shape = circle]\n");
-  for (size_t i = 0; i < D->accepting_states.size; i++) {
-    fprintf(out, " d%u [shape = doublecircle];\n", D->accepting_states.ids[i]);
-  }
+
+  ITER(state_id_t, id, &D->accepting_states)
+    fprintf(out, " d%u [shape = doublecircle];\n", *id);
 
   ITER(line, start, &D->t_matrix) {
     ITER(path, p, &start->paths) {
