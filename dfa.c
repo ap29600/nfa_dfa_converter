@@ -7,8 +7,6 @@
 
 #define FIRST_EXAMPLE_
 
-
-
 void dump_nfa_to_dot(nfa *N, const char *filename) {
   FILE *out = fopen(filename, "w");
   assert(N);
@@ -39,8 +37,17 @@ void dump_dfa_to_dot(dfa *D, const char *filename) {
   fprintf(out, "digraph {\n");
   fprintf(out, "  node [shape = circle]\n");
 
+  state_id_t start_id = 1;
+  if (vec_find(&D->accepting_states, &start_id)) {
+      fprintf(out, "  d1 [shape = msquare]\n");
+  } else {
+      fprintf(out, "  d1 [shape = square]\n");
+  }
+
   ITER(state_id_t, id, &D->accepting_states)
-    fprintf(out, " d%u [shape = doublecircle];\n", *id);
+    if(*id != 1)
+      fprintf(out, " d%u [shape = doublecircle];\n", *id);
+
 
   ITER(line, start, &D->t_matrix) {
     ITER(path, p, &start->paths) {

@@ -64,7 +64,7 @@ dfa *to_dfa(nfa *N) {
   result->t_matrix = L_VEC();
 
   vector err_state = SET(0);
-  vector n0 = SET(1);
+  vector n0 = SET(N->start_id);
   vector q0 = eps_closure(N, &n0);
 
   vector Q = S_VEC(err_state, q0);
@@ -177,7 +177,11 @@ typedef struct {
 vec_tuple split(dfa *D, vector *P, vector *s) {
   vec_tuple result = {SET(), SET()};
 
-  assert(s->size);
+  if(!s->size) {
+      result.l = *s;
+      return result;
+  }
+
 
   for (unsigned c = 1; c < 256; c++) {
     int expect = 0;
