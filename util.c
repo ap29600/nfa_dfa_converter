@@ -129,26 +129,3 @@ int path_cmp(const void *a, const void *b) {
 #define L_VEC(...) VEC(line, line_cmp, ##__VA_ARGS__)
 #define P_VEC(...) VEC(path, path_cmp, ##__VA_ARGS__)
 
-/*
-int main() {
-  vector transition_matrix = L_VEC(
-          {0,  P_VEC()},
-          {1,  P_VEC({'t', 2}, {'h', 7})},
-          {2,  P_VEC({'h', 3})},
-          {3,  P_VEC({'e', 4})},
-          {4,  P_VEC({'r', 5})},
-          {5,  P_VEC({'e', 6})},
-          {6,  P_VEC()},
-          {7,  P_VEC({'e', 8})},
-          {8,  P_VEC({'r', 9})},
-          {9,  P_VEC({'e', 10})},
-          {10, P_VEC()}
-          );
-
-  ITER(line, start_state, &transition_matrix) {
-    ITER(path, pth, &start_state->paths) {
-      printf("%d --[%c]--> %d\n", start_state->id, pth->trigger, pth->end_state);
-    }
-  }
-}
-*/

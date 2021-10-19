@@ -1,3 +1,6 @@
+
+CFLAGS=-Wall -Wextra -std=c11
+
 default: clean pics
 
 clean:
@@ -12,4 +15,4 @@ pics: initial.dot intermediate.dot minimised.dot
 	./dfa
 
 dfa: *.c
-	gcc -ggdb *.c -o dfa
+	gcc $(CFLAGS) -ggdb *.c -o dfa

@@ -28,7 +28,7 @@ typedef struct transition_matrix {
     size_t capacity;
     state_id_t (*data)[256];
 } transition_matrix;
-
+/*
 typedef struct {
     size_t n_states;
 
@@ -39,6 +39,14 @@ typedef struct {
     transition_matrix T;
     vector accepting_states;
 } nfa;
+*/
+
+typedef struct nfa {
+  vector t_matrix;
+  state_id_t start_id;
+  state_id_t end_id;
+} nfa ;
+
 
 typedef struct {
     state_id_t n_states;

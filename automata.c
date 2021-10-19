@@ -1,11 +1,12 @@
 #include "automata.h"
-#include <stdio.h>
 #include "string.h"
+#include "util.h"
+#include <stdio.h>
 
 unsigned transition_matrix_find(vector *matrix, state_id_t row,
                                 unsigned char col) {
   line l = {row, P_VEC()};
-  const path p = {col};
+  const path p = {col, 0};
 
   const line *ll = vec_find_sorted(matrix, &l);
   destroy(&l.paths);
@@ -80,7 +81,7 @@ dfa *to_dfa(nfa *N) {
     assert(source != NULL);
     state_id_t id_source = index_of(&Q, source);
 
-    for (unsigned c = 0; c < 256; c++) {
+    for (unsigned c = 1; c < 256; c++) {
       vector tmp = delta(N, &q, c);
 
       if (!tmp.size) {
@@ -111,7 +112,7 @@ dfa *to_dfa(nfa *N) {
   ITER(vector, q, &Q) {
     state_id_t dfa_id = index_of(&Q, q);
     ITER(state_id_t, nfa_id, q) {
-      if (vec_find(&N->accepting_states, nfa_id) &&
+      if (*nfa_id == N->end_id &&
           !vec_find(&result->accepting_states, &dfa_id)) {
         vec_insert_sorted(&result->accepting_states, &dfa_id);
       }
@@ -124,8 +125,14 @@ dfa *to_dfa(nfa *N) {
 vector delta(nfa *N, vector *q, unsigned char c) {
   vector result = SET();
   ITER(state_id_t, id, q) {
-    if (N->T.data[*id][c]) {
-      vec_insert_sorted(&result, &N->T.data[*id][c]);
+    line key = {.id = *id};
+    line *l = vec_find(&N->t_matrix, &key);
+    if (l) {
+      ITER(path, p, &l->paths) {
+        if (p->trigger == c) {
+          vec_insert_sorted(&result, &p->end_state);
+        }
+      }
     }
   }
   return result;
@@ -147,27 +154,24 @@ vector eps_closure(nfa *N, const vector *in) {
     state_id_t start_id = 0;
     vec_pop_back(&work_list, &start_id);
 
-    // TODO: use a sparse matrix for epsilon moves?
-    state_id_t end_id = N->epsilon[start_id][0];
-    if (end_id > 0 && !vec_find_sorted(&result, &end_id)) {
-      vec_insert_sorted(&result, &end_id);
-      vec_insert(&work_list, &end_id);
-    }
-
-    end_id = N->epsilon[start_id][1];
-    if (end_id > 0 && !vec_find_sorted(&result, &end_id)) {
-      vec_insert_sorted(&result, &end_id);
-      vec_insert(&work_list, &end_id);
+    line key = {.id = start_id};
+    line *l = vec_find(&N->t_matrix, &key);
+    if (l) {
+      ITER(path, p, &l->paths) {
+        if (p->trigger == '\0' && !vec_find_sorted(&result, &p->end_state)) {
+          vec_insert_sorted(&result, &p->end_state);
+          vec_insert(&work_list, &p->end_state);
+        }
+      }
     }
   }
   destroy(&work_list);
   return result;
 }
 
-
 typedef struct {
-    vector l;
-    vector r;
+  vector l;
+  vector r;
 } vec_tuple;
 
 vec_tuple split(dfa *D, vector *P, vector *s) {
@@ -175,10 +179,11 @@ vec_tuple split(dfa *D, vector *P, vector *s) {
 
   assert(s->size);
 
-  for (unsigned c = 0; c < 256; c++) {
+  for (unsigned c = 1; c < 256; c++) {
     int expect = 0;
 
-    state_id_t dest = transition_matrix_find(&D->t_matrix, *(state_id_t*)s->ptr, c);
+    state_id_t dest =
+        transition_matrix_find(&D->t_matrix, *(state_id_t *)s->ptr, c);
 
     if (dest == 0)
       continue;
@@ -193,7 +198,7 @@ vec_tuple split(dfa *D, vector *P, vector *s) {
     assert(expect >= 0);
 
     for (state_id_t i = 1; i < s->size; i++) {
-      state_id_t id = ((state_id_t*)s->ptr)[i];
+      state_id_t id = ((state_id_t *)s->ptr)[i];
       state_id_t dest = transition_matrix_find(&D->t_matrix, id, c);
 
       if (dest > 0 && vec_find(elem_at(P, expect), &dest)) {
@@ -202,7 +207,7 @@ vec_tuple split(dfa *D, vector *P, vector *s) {
 
       // now all the values up to i-1 belong to the set at [expect].
       for (state_id_t j = 0; j < i; j++) {
-        vec_insert_sorted(&result.l, (state_id_t*)s->ptr + j);
+        vec_insert_sorted(&result.l, (state_id_t *)s->ptr + j);
       }
 
       // value at [i] does not.
@@ -210,11 +215,12 @@ vec_tuple split(dfa *D, vector *P, vector *s) {
 
       // the others still need to be checked.
       for (state_id_t j = i + 1; j < s->size; j++) {
-        dest = transition_matrix_find(&D->t_matrix, ((state_id_t*)s->ptr)[j], c);
+        dest =
+            transition_matrix_find(&D->t_matrix, ((state_id_t *)s->ptr)[j], c);
         if (dest > 0 && vec_find(elem_at(P, expect), &dest))
-          vec_insert_sorted(&result.l, (state_id_t*)s->ptr + j);
+          vec_insert_sorted(&result.l, (state_id_t *)s->ptr + j);
         else {
-          vec_insert_sorted(&result.r, (state_id_t*)s->ptr + j);
+          vec_insert_sorted(&result.r, (state_id_t *)s->ptr + j);
         }
       }
       return result;
@@ -256,13 +262,13 @@ dfa *minimize(dfa *D) {
 
     vector *start = elem_at(&T, i - 1);
     assert(start->size);
-    state_id_t start_id = *(state_id_t*)start->ptr;
+    state_id_t start_id = *(state_id_t *)start->ptr;
 
     if (vec_find(&D->accepting_states, &start_id)) {
       vec_insert_sorted(&R->accepting_states, &i);
     }
 
-    for (unsigned c = 0; c < 256; c++) {
+    for (unsigned c = 1; c < 256; c++) {
       state_id_t end_id = transition_matrix_find(&D->t_matrix, start_id, c);
       for (state_id_t j = 1; j < T.size + 1; j++) {
         if (vec_find(elem_at(&T, j - 1), &end_id)) {
