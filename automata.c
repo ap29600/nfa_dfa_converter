@@ -3,6 +3,13 @@
 #include "util.h"
 #include <stdio.h>
 
+int line_cmp(const void *a, const void *b) {
+  return ((line *)a)->id - ((line *)b)->id;
+}
+int path_cmp(const void *a, const void *b) {
+  return ((path *)a)->trigger - ((path *)b)->trigger;
+}
+
 unsigned transition_matrix_find(vector *matrix, state_id_t row,
                                 unsigned char col) {
   line l = {row, P_VEC()};
@@ -242,11 +249,19 @@ dfa *minimize(dfa *D) {
   vector T;
   vector P;
 
+  // TODO: clean up this mess.
+  // currently the minimisation roughly preserves order of the states, so the
+  // first state of the first set is kept there.  it would be nice not to
+  // depend on this behaviour.
   if (c.size > 0) {
-      T = S_VEC(c, D->accepting_states);
-  } else {
+      state_id_t start = 1;
+      if (vec_find(&D->accepting_states,  &start))
+          T = S_VEC(D->accepting_states, c);
+      else 
+          T = S_VEC(c, D->accepting_states);
+  } else
       T = S_VEC(D->accepting_states);
-  }
+
   P = S_VEC();
 
   while (T.size > P.size) {

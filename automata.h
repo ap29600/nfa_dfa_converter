@@ -13,12 +13,8 @@ typedef struct {
   state_id_t end_state;
 } path;
 
-static int line_cmp(const void *a, const void *b) {
-  return ((line *)a)->id - ((line *)b)->id;
-}
-static int path_cmp(const void *a, const void *b) {
-  return ((path *)a)->trigger - ((path *)b)->trigger;
-}
+int line_cmp(const void *a, const void *b);
+int path_cmp(const void *a, const void *b);
 
 #define L_VEC(...) VEC(line, line_cmp, ##__VA_ARGS__)
 #define P_VEC(...) VEC(path, path_cmp, ##__VA_ARGS__)
