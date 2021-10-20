@@ -1,10 +1,9 @@
-
 CFLAGS=-Wall -Wextra -std=c11
 
 default: clean pics
 
 clean:
-	$(RM) *.svg *.dot
+	$(RM) *.svg *.dot dfa
 
 pics: initial.dot intermediate.dot minimised.dot
 	dot -Tsvg initial.dot > initial.svg

@@ -242,25 +242,24 @@ dfa *minimize(dfa *D) {
   vector T;
   vector P;
 
-  if (c.size == 0) {
-      T = S_VEC(D->accepting_states);
-  } else {
+  if (c.size > 0) {
       T = S_VEC(c, D->accepting_states);
-      P = S_VEC();
+  } else {
+      T = S_VEC(D->accepting_states);
+  }
+  P = S_VEC();
 
+  while (T.size > P.size) {
+    destroy(&P);
+    P = T;
+    T = S_VEC();
 
-      while (T.size > P.size) {
-        destroy(&P);
-        P = T;
-        T = S_VEC();
-
-        ITER(vector, s, &P) {
-          vec_tuple parts = split(D, &P, s);
-          vec_insert(&T, &parts.l);
-          if (parts.r.size > 0)
-            vec_insert(&T, &parts.r);
-        }
-      }
+    ITER(vector, s, &P) {
+      vec_tuple parts = split(D, &P, s);
+      vec_insert(&T, &parts.l);
+      if (parts.r.size > 0)
+        vec_insert(&T, &parts.r);
+    }
   }
 
   dfa *R = calloc(sizeof(dfa), 1);
