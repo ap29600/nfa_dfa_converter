@@ -239,21 +239,28 @@ dfa *minimize(dfa *D) {
   vector elems = vec_iota(1, D->n_states - 1);
 
   vector c = vec_complement(&elems, &D->accepting_states);
+  vector T;
+  vector P;
 
-  vector T = S_VEC(c, D->accepting_states);
-  vector P = S_VEC();
+  if (c.size == 0) {
+      T = S_VEC(D->accepting_states);
+  } else {
+      T = S_VEC(c, D->accepting_states);
+      P = S_VEC();
 
-  while (T.size > P.size) {
-    destroy(&P);
-    P = T;
-    T = S_VEC();
 
-    ITER(vector, s, &P) {
-      vec_tuple parts = split(D, &P, s);
-      vec_insert(&T, &parts.l);
-      if (parts.r.size > 0)
-        vec_insert(&T, &parts.r);
-    }
+      while (T.size > P.size) {
+        destroy(&P);
+        P = T;
+        T = S_VEC();
+
+        ITER(vector, s, &P) {
+          vec_tuple parts = split(D, &P, s);
+          vec_insert(&T, &parts.l);
+          if (parts.r.size > 0)
+            vec_insert(&T, &parts.r);
+        }
+      }
   }
 
   dfa *R = calloc(sizeof(dfa), 1);

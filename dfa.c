@@ -39,7 +39,7 @@ void dump_dfa_to_dot(dfa *D, const char *filename) {
 
   state_id_t start_id = 1;
   if (vec_find(&D->accepting_states, &start_id)) {
-      fprintf(out, "  d1 [shape = msquare]\n");
+      fprintf(out, "  d1 [shape = Msquare]\n");
   } else {
       fprintf(out, "  d1 [shape = square]\n");
   }
