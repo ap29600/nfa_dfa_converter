@@ -19,7 +19,7 @@ void *vec_find(const vector *vec, const void *element) {
   size_t s = vec->elem_size;
   size_t n = vec->size;
   const uintptr_t p = (uintptr_t)vec->ptr;
-  for (void *test = (void*)p; (uintptr_t)test < p + n * s; *(uintptr_t*)&test += s) {
+  for (void *test = (void*)p; (uintptr_t)test < p + n * s; test = (void*)((uintptr_t)test + s)) {
     if (vec->compar(element, test) == 0) 
       return test;
   }

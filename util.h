@@ -47,7 +47,7 @@ typedef struct {
   assert(sizeof(T) == (V)->elem_size);                                         \
   for (T *P = (T *)(V)->ptr;                                                   \
        (uintptr_t)P < (uintptr_t)(V)->ptr + (V)->size * (V)->elem_size;        \
-       *(uintptr_t *)&P += (V)->elem_size)
+       P ++)
 
 typedef unsigned short state_id_t;
 

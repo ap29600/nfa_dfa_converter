@@ -1,4 +1,4 @@
-CFLAGS=-Wall -Wextra -std=c11
+CFLAGS=-Wall -Wextra -std=c11 -O3 -march=native
 
 default: rm_pics pics
 
@@ -17,4 +17,4 @@ pics: initial.dot intermediate.dot minimised.dot
 	./dfa
 
 dfa: *.c *.h
-	gcc $(CFLAGS) -ggdb *.c -o dfa
+	gcc $(CFLAGS) *.c -o dfa
