@@ -97,6 +97,11 @@ struct nfa regex_to_nfa(const char *regex, size_t regex_len) {
     case '|':
       if (tmp.t_matrix.size > 0)
         concatenate_regex(&result, &tmp);
+      else if (result.t_matrix.size == 0) {
+        result.t_matrix = L_VEC({.id = 1, .paths = P_VEC({ .trigger = '\0', .end_state = 2, })});
+        result.start_id = 1;
+        result.end_id = 2;
+      }
 
       tmp = regex_to_nfa(regex + i + 1, regex_len - i - 1);
 
