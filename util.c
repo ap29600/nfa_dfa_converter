@@ -83,27 +83,22 @@ int st_cmp(const void*a, const void*b) {
     return *(state_id_t*)a - *(state_id_t*)b;
 }
 
-vector vec_iota(state_id_t start, state_id_t end) {
-    vector result = VEC(state_id_t, st_cmp);
-    result.cap = end - start + 1;
-    result.size = end - start + 1;
-    result.ptr = realloc(result.ptr, result.cap * sizeof(state_id_t));
-    state_id_t *p = result.ptr;
-    for (state_id_t i = 0; i< result.size; i++) {
-        p[i] = i + start;
+bit_set set_iota(state_id_t start, state_id_t end) {
+    bit_set result = {0};    
+    assert(start <= MAX_NFA_SIZE);
+    assert(end <= MAX_NFA_SIZE);
+    for(int i = start; i < end; i++) {
+        result.data[i / BS_BLOCK_SIZ] |= 
+            1 << (i % BS_BLOCK_SIZ); 
     }
     return result;
 }
 
-vector vec_complement(const vector *source, const vector *exclude) {
-    vector result = VEC(state_id_t, st_cmp);
-
-    ITER(state_id_t, id, source) {
-        if (!vec_find_sorted(exclude, id)) {
-            vec_insert_sorted(&result, id);
-        }
+bit_set set_complement(const bit_set *source, const bit_set *exclude) {
+    bit_set result = {0};
+    for(size_t i = 0; i < sizeof(result.data) / sizeof(result.data[0]); i++) {
+        result.data[i] = source->data[i] & ~exclude->data[i];
     }
-
     return result;
 }
 
@@ -121,4 +116,22 @@ typedef struct {
 
 #define L_VEC(...) VEC(line, line_cmp, ##__VA_ARGS__)
 #define P_VEC(...) VEC(path, path_cmp, ##__VA_ARGS__)
+
+
+void debug_ivec(vector *vec) {
+    printf("{");
+    ITER(state_id_t, i, vec) {
+        printf(" %u", *i);
+    }
+    printf(" }");
+
+}
+
+void inspect (const bit_set *s) {
+    printf("{ ");
+    ITERATE_BITSET(id, *s) {
+        printf("%u ", id);
+    }
+    printf("}");
+}
 

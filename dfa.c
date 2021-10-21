@@ -1,5 +1,5 @@
-#include "thompson.h"
 #include "automata.h"
+#include "thompson.h"
 #include "util.h"
 // #include "vec.h"
 #include <stdio.h>
@@ -30,7 +30,6 @@ void dump_nfa_to_dot(nfa *N, const char *filename) {
   fclose(out);
 }
 
-
 void dump_dfa_to_dot(dfa *D, const char *filename) {
   FILE *out = fopen(filename, "w");
   assert(D);
@@ -38,16 +37,16 @@ void dump_dfa_to_dot(dfa *D, const char *filename) {
   fprintf(out, "  node [shape = circle]\n");
 
   state_id_t start_id = 1;
-  if (vec_find(&D->accepting_states, &start_id)) {
-      fprintf(out, "  d1 [shape = Msquare]\n");
+  if (set_has(&D->accepting_states, start_id)) {
+    fprintf(out, "  d1 [shape = Msquare]\n");
   } else {
-      fprintf(out, "  d1 [shape = square]\n");
+    fprintf(out, "  d1 [shape = square]\n");
   }
 
-  ITER(state_id_t, id, &D->accepting_states)
-    if(*id != 1)
-      fprintf(out, " d%u [shape = doublecircle];\n", *id);
-
+  ITERATE_BITSET(id, D->accepting_states) {
+    if (id != 1)
+      fprintf(out, " d%u [shape = doublecircle];\n", id);
+  }
 
   ITER(line, start, &D->t_matrix) {
     ITER(path, p, &start->paths) {
@@ -61,15 +60,17 @@ void dump_dfa_to_dot(dfa *D, const char *filename) {
 }
 
 int main() {
-  char regex [1024];
+  char regex[1024];
 
   printf("Please insert the regular expression to translate:\n>>> ");
   scanf("%s", regex);
 
   nfa A = regex_to_nfa(regex, strlen(regex));
   dump_nfa_to_dot(&A, "initial.dot");
+
   dfa *D = to_dfa(&A);
   dump_dfa_to_dot(D, "intermediate.dot");
+
   dfa *R = minimize(D);
   dump_dfa_to_dot(R, "minimised.dot");
 }

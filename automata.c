@@ -50,63 +50,54 @@ void transition_matrix_insert(vector *matrix, state_id_t start, unsigned char c,
 }
 
 int set_cmp(const void *a, const void *b) {
-  const vector *A = a;
-  const vector *B = b;
-
-  assert(A->elem_size == sizeof(state_id_t));
-  assert(B->elem_size == sizeof(state_id_t));
-
-  for (size_t i = 0; i < A->size && i < B->size; i++) {
-    if (A->compar(elem_at(A, i), elem_at(B, i)) != 0)
-      return A->compar(elem_at(A, i), elem_at(B, i));
-  }
-  return A->size - B->size;
+  const bit_set *aa = a;
+  const bit_set *bb = b;
+  return memcmp(aa->data, bb->data, BS_N_BLOCKS * sizeof(bitset_block_t));
 }
 
-#define S_VEC(...) VEC(vector, set_cmp, ##__VA_ARGS__)
+#define S_VEC(...) VEC(bit_set, set_cmp, ##__VA_ARGS__)
 #define SET(...) VEC(state_id_t, st_cmp, ##__VA_ARGS__)
 
 dfa *to_dfa(nfa *N) {
   dfa *result = calloc(sizeof(dfa), 1);
   result->t_matrix = L_VEC();
 
-  vector err_state = SET(0);
-  vector n0 = SET(N->start_id);
-  vector q0 = eps_closure(N, &n0);
+  bit_set err_state = {.data = {1 << 0}};
+  bit_set n0 = {0};
+  set_insert(&n0, N->start_id);
+
+  bit_set q0 = eps_closure_(N, &n0);
 
   vector Q = S_VEC(err_state, q0);
   vector Wl = S_VEC(q0);
 
   while (Wl.size) {
-    vector q;
+
+    bit_set q;
     vec_pop_back(&Wl, &q);
 
-    vector *source = vec_find(&Q, &q);
-
+    bit_set *source = vec_find(&Q, &q);
     // we should be able to find the element in Q,
     // since Wl is a subset of Q.
     assert(source != NULL);
     state_id_t id_source = index_of(&Q, source);
 
     for (unsigned c = 1; c < 256; c++) {
-      vector tmp = delta(N, &q, c);
 
-      if (!tmp.size) {
-        destroy(&tmp);
+      bit_set tmp = delta_(N, &q, c);
+      if (empty(&tmp))
         continue;
-      }
 
-      vector t = eps_closure(N, &tmp);
-      destroy(&tmp);
+      bit_set t = eps_closure_(N, &tmp);
+      bit_set *dest_p = vec_find(&Q, &t);
 
-      vector *dest_p = vec_find(&Q, &t);
       state_id_t id_dest;
-      if (!dest_p) {
+      if (dest_p)
+        id_dest = index_of(&Q, dest_p);
+      else {
         vec_insert(&Q, &t);
         vec_insert(&Wl, &t);
         id_dest = Q.size - 1;
-      } else {
-        id_dest = index_of(&Q, dest_p);
       }
 
       transition_matrix_insert(&result->t_matrix, id_source, c, id_dest);
@@ -114,18 +105,20 @@ dfa *to_dfa(nfa *N) {
   }
 
   result->n_states = Q.size; // 1 for the ERR state
-  result->accepting_states = SET();
+  result->accepting_states = (bit_set){0};
 
-  ITER(vector, q, &Q) {
+  ITER(bit_set, q, &Q) {
     state_id_t dfa_id = index_of(&Q, q);
-    ITER(state_id_t, nfa_id, q) {
-      if (*nfa_id == N->end_id &&
-          !vec_find(&result->accepting_states, &dfa_id)) {
-        vec_insert_sorted(&result->accepting_states, &dfa_id);
+    ITERATE_BITSET(nfa_id, *q) {
+      if (nfa_id == N->end_id) {
+        set_insert(&result->accepting_states, dfa_id);
+        goto next_iter;
+        // there are a few macros in the way, so `break` won't
+        // work here.
       }
     }
+  next_iter:;
   }
-
   return result;
 }
 
@@ -138,6 +131,44 @@ vector delta(nfa *N, vector *q, unsigned char c) {
       ITER(path, p, &l->paths) {
         if (p->trigger == c) {
           vec_insert_sorted(&result, &p->end_state);
+        }
+      }
+    }
+  }
+  return result;
+}
+
+bit_set delta_(nfa *N, bit_set *q, unsigned char c) {
+  bit_set result = {0};
+  ITERATE_BITSET(id, *q) {
+    line key = {.id = id};
+    line *l = vec_find(&N->t_matrix, &key);
+    if (l) {
+      ITER(path, p, &l->paths) {
+        if (p->trigger == c) {
+          set_insert(&result, p->end_state);
+        }
+      }
+    }
+  }
+  return result;
+}
+
+bit_set eps_closure_(nfa *N, const bit_set *in) {
+  bit_set result = *in;
+  bit_set worklist = *in;
+
+  state_id_t start_id;
+  while ((start_id = set_pop(&worklist)) != 0) {
+    line key = {.id = start_id};
+    // here we could skip the construction of the key.
+    // since we only check the id, &start_id looks like a valid line*.
+    line *l = vec_find(&N->t_matrix, &key);
+    if (l) {
+      ITER(path, p, &l->paths) {
+        if (p->trigger == '\0' && !set_has(&result, p->end_state)) {
+          set_insert(&result, p->end_state);
+          set_insert(&worklist, p->end_state);
         }
       }
     }
@@ -181,71 +212,70 @@ typedef struct {
   vector r;
 } vec_tuple;
 
-vec_tuple split(dfa *D, vector *P, vector *s) {
-  vec_tuple result = {SET(), SET()};
+typedef struct {
+  bit_set l;
+  bit_set r;
+} set_tuple;
 
-  if(!s->size) {
-      result.l = *s;
-      return result;
-  }
-
+set_tuple split(dfa *D, vector *P, const bit_set *s) {
+  set_tuple result = {0};
+  assert(!empty(s));
 
   for (unsigned c = 1; c < 256; c++) {
-    int expect = 0;
+    bit_set *expect = NULL;
+    int first_iter = 1;
+    state_id_t dest;
 
-    state_id_t dest =
-        transition_matrix_find(&D->t_matrix, *(state_id_t *)s->ptr, c);
-
-    if (dest == 0)
-      continue;
-
-    ITER(vector, q, P) {
-      if (vec_find_sorted(q, &dest)) {
-        expect = index_of(P, q);
-        break;
-      }
-    }
-
-    assert(expect >= 0);
-
-    for (state_id_t i = 1; i < s->size; i++) {
-      state_id_t id = ((state_id_t *)s->ptr)[i];
-      state_id_t dest = transition_matrix_find(&D->t_matrix, id, c);
-
-      if (dest > 0 && vec_find(elem_at(P, expect), &dest)) {
-        continue;
-      }
-
-      // now all the values up to i-1 belong to the set at [expect].
-      for (state_id_t j = 0; j < i; j++) {
-        vec_insert_sorted(&result.l, (state_id_t *)s->ptr + j);
-      }
-
-      // value at [i] does not.
-      vec_insert_sorted(&result.r, &id);
-
-      // the others still need to be checked.
-      for (state_id_t j = i + 1; j < s->size; j++) {
-        dest =
-            transition_matrix_find(&D->t_matrix, ((state_id_t *)s->ptr)[j], c);
-        if (dest > 0 && vec_find(elem_at(P, expect), &dest))
-          vec_insert_sorted(&result.l, (state_id_t *)s->ptr + j);
-        else {
-          vec_insert_sorted(&result.r, (state_id_t *)s->ptr + j);
+    ITERATE_BITSET(id, *s) {
+      dest = transition_matrix_find(&D->t_matrix, id, c);
+      if (first_iter) { // set the expectation
+        ITER(bit_set, b, P) {
+          assert(b);
+          if (set_has(b, dest)) {
+            expect = b;
+            break;
+          }
+        }
+        first_iter = 0;
+      } else { // check that every id meets the expectation
+        if ((expect && !dest) || (!expect && dest) ||
+            (expect && !set_has(expect, dest))) {
+          goto split_set;
         }
       }
-      return result;
     }
+    continue;
+
+  split_set:
+    printf("split on char %c: ", c);
+    inspect(s);
+    printf("\n");
+    ITERATE_BITSET(id, *s) {
+      dest = transition_matrix_find(&D->t_matrix, id, c);
+      if ((expect && !dest) || (!expect && dest) ||
+          (expect && !set_has(expect, dest))) {
+        set_insert(&result.r, id);
+      } else {
+        set_insert(&result.l, id);
+      }
+    }
+    printf("results in: ");
+    inspect(&result.l);
+    inspect(&result.r);
+    printf("\n");
+
+    return result;
   }
+
   result.l = *s;
+  result.r = (bit_set){0};
   return result;
 }
 
 dfa *minimize(dfa *D) {
 
-  vector elems = vec_iota(1, D->n_states - 1);
-
-  vector c = vec_complement(&elems, &D->accepting_states);
+  bit_set elems = set_iota(1, D->n_states - 1);
+  bit_set c = set_complement(&elems, &D->accepting_states);
   vector T;
   vector P;
 
@@ -253,27 +283,30 @@ dfa *minimize(dfa *D) {
   // currently the minimisation roughly preserves order of the states, so the
   // first state of the first set is kept there.  it would be nice not to
   // depend on this behaviour.
-  if (c.size > 0) {
-      state_id_t start = 1;
-      if (vec_find(&D->accepting_states,  &start))
-          T = S_VEC(D->accepting_states, c);
-      else 
-          T = S_VEC(c, D->accepting_states);
+  if (!empty(&c)) {
+    state_id_t start = 1;
+    if (set_has(&D->accepting_states, start))
+      T = S_VEC(D->accepting_states, c);
+    else
+      T = S_VEC(c, D->accepting_states);
   } else
-      T = S_VEC(D->accepting_states);
+    T = S_VEC(D->accepting_states);
 
   P = S_VEC();
 
   while (T.size > P.size) {
     destroy(&P);
+
     P = T;
     T = S_VEC();
 
-    ITER(vector, s, &P) {
-      vec_tuple parts = split(D, &P, s);
+    ITER(bit_set, s, &P) {
+      set_tuple parts = split(D, &P, s);
+      assert(!empty(&parts.l));
       vec_insert(&T, &parts.l);
-      if (parts.r.size > 0)
+      if (!empty(&parts.r)) {
         vec_insert(&T, &parts.r);
+      }
     }
   }
 
@@ -281,28 +314,36 @@ dfa *minimize(dfa *D) {
   R->t_matrix = L_VEC();
 
   R->n_states = T.size + 1;
-  R->accepting_states = SET();
+  R->accepting_states = (bit_set){0};
 
-  for (state_id_t i = 1; i < R->n_states; i++) {
 
-    vector *start = elem_at(&T, i - 1);
-    assert(start->size);
-    state_id_t start_id = *(state_id_t *)start->ptr;
-
-    if (vec_find(&D->accepting_states, &start_id)) {
-      vec_insert_sorted(&R->accepting_states, &i);
+  ITER(bit_set, b, &T) {
+    state_id_t start_id =
+        index_of(&T, b) + 1; // +1 leaves space for ERR state = 0
+    assert(!empty(b));
+    state_id_t elem = set_peek(b);
+    if (set_has(&D->accepting_states, elem)) {
+      set_insert(&R->accepting_states, start_id);
     }
 
-    for (unsigned c = 1; c < 256; c++) {
-      state_id_t end_id = transition_matrix_find(&D->t_matrix, start_id, c);
-      for (state_id_t j = 1; j < T.size + 1; j++) {
-        if (vec_find(elem_at(&T, j - 1), &end_id)) {
-          transition_matrix_insert(&R->t_matrix, i, c, j);
-          goto next;
+    // all elements of this set should have the same
+    // destination as each other for every char, so we can just check
+    // for the first.
+    line key = {.id = elem};
+    line *ll = vec_find(&D->t_matrix, &key);
+
+    if (ll) {
+      ITER(path, p, &ll->paths) {
+        ITER(bit_set, q, &T) {
+          if (set_has(q, p->end_state)) {
+            transition_matrix_insert(&R->t_matrix, start_id,
+                                     p->trigger, index_of(&T, q) + 1);
+            break;
+          }
         }
       }
-    next:;
     }
   }
+
   return R;
 }

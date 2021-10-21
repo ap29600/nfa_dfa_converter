@@ -1,9 +1,12 @@
 CFLAGS=-Wall -Wextra -std=c11
 
-default: clean pics
+default: rm_pics pics
 
-clean:
-	$(RM) *.svg *.dot dfa
+rm_pics:
+	$(RM) *.svg *.dot
+
+clean: rm_pics
+	$(RM) dfa
 
 pics: initial.dot intermediate.dot minimised.dot
 	dot -Tsvg initial.dot > initial.svg
@@ -13,5 +16,5 @@ pics: initial.dot intermediate.dot minimised.dot
 %.dot: dfa
 	./dfa
 
-dfa: *.c
+dfa: *.c *.h
 	gcc $(CFLAGS) -ggdb *.c -o dfa
