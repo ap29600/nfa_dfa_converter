@@ -59,4 +59,6 @@ dfa *to_dfa(nfa *N);
 
 dfa *minimize(dfa *D);
 
+void delete_nfa(nfa *N);
+void delete_dfa(dfa *D);
 #endif // AUTOMATA_H_

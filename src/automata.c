@@ -247,9 +247,6 @@ set_tuple split(dfa *D, vector *P, const bit_set *s) {
     continue;
 
   split_set:
-    printf("split on char %c: ", c);
-    inspect(s);
-    printf("\n");
     ITERATE_BITSET(id, *s) {
       dest = transition_matrix_find(&D->t_matrix, id, c);
       if ((expect && !dest) || (!expect && dest) ||
@@ -259,11 +256,6 @@ set_tuple split(dfa *D, vector *P, const bit_set *s) {
         set_insert(&result.l, id);
       }
     }
-    printf("results in: ");
-    inspect(&result.l);
-    inspect(&result.r);
-    printf("\n");
-
     return result;
   }
 
@@ -347,3 +339,19 @@ dfa *minimize(dfa *D) {
 
   return R;
 }
+
+void delete_nfa(nfa *N) {
+    ITER(line, l, &N->t_matrix) {
+        free(l->paths.ptr);
+    }
+    free(N->t_matrix.ptr);
+}
+
+void delete_dfa(dfa *D) {
+    ITER(line, l, &D->t_matrix) {
+        free(l->paths.ptr);
+    }
+    free(D->t_matrix.ptr);
+}
+
+
