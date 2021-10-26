@@ -85,6 +85,19 @@ void concatenate_regex(struct nfa *a, struct nfa *b) {
   *b = (struct nfa){0};
 }
 
+
+const char escape_sequences[] = {
+  ['n'] = '\n',
+  ['t'] = '\t',
+  ['s'] = ' ',
+  ['('] = '(',
+  [')'] = ')',
+  ['*'] = '*',
+  ['['] = '[',
+  [']'] = ']',
+};
+
+
 struct nfa regex_to_nfa(const char *regex, size_t regex_len) {
 
   struct nfa result = {.t_matrix = L_VEC(), .start_id = 0, .end_id = 0};
@@ -92,7 +105,37 @@ struct nfa regex_to_nfa(const char *regex, size_t regex_len) {
 
   size_t depth;
   size_t j;
+  int escaped = 0;
   for (size_t i = 0; i < regex_len; i++) {
+
+    if (escaped) {
+      escaped = 0;
+      
+      char c = escape_sequences[(unsigned char)regex[i]];
+
+      if (c == '\0') {
+        fprintf(stderr, "unknown char escape code: '\\%c' (%d)\n", c, c);
+        exit(1);
+      }
+
+      if (tmp.t_matrix.size > 0)
+        concatenate_regex(&result, &tmp);
+
+      tmp = (struct nfa){
+          .t_matrix = L_VEC({
+              .id = result.end_id + 1,
+              .paths = P_VEC({
+                  .trigger = c,
+                  .end_state = result.end_id + 2,
+              }),
+          }),
+          .start_id = result.end_id + 1,
+          .end_id = result.end_id + 2,
+      };
+
+      continue;
+    }
+
     switch (regex[i]) {
     case '|':
       if (tmp.t_matrix.size > 0)
@@ -117,12 +160,21 @@ struct nfa regex_to_nfa(const char *regex, size_t regex_len) {
     case '(':
       depth = 1;
       for (j = i + 1; j < regex_len && depth > 0; j++) {
+
+        if (escaped) {
+          escaped = 0;
+          continue;
+        }
+
         switch (regex[j]) {
         case '(':
           depth++;
           break;
         case ')':
           depth--;
+          break;
+        case '\\':
+          escaped = 1;
           break;
         default:
           break;
@@ -148,6 +200,42 @@ struct nfa regex_to_nfa(const char *regex, size_t regex_len) {
       break;
     case ')':
       assert(0 && "Closing parentheses without opening.");
+    case '\\':
+      escaped = 1;
+      break;
+    case '[':
+      do {
+        char start = regex[++ i];
+        assert(regex[++i] == '-');
+        char end = regex[++ i];
+        assert(regex[++ i] == ']');
+
+        if(tmp.t_matrix.size > 0)
+          concatenate_regex(&result, &tmp);
+
+        line l = {
+          .id = result.end_id + 1,
+          .paths = P_VEC(),
+        }; 
+
+        for(char c = start; c <= end; c++) {
+          path p = {.trigger = c, .end_state = result.end_id + 2};
+          vec_insert_sorted(&l.paths, &p);
+        }
+
+        tmp = (struct nfa) {
+          .t_matrix = L_VEC(l),
+          .start_id = result.end_id + 1,
+          .end_id = result.end_id + 2,
+        };
+
+      } while (0);
+      break;
+
+    case ']':
+      assert(0 && "Closing square brackets without opening.");
+      
+
     case '*':
       loop_regex(&tmp);
       break;

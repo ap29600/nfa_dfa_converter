@@ -5,6 +5,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/types.h>
 
 struct {
   unsigned nfa_graph     : 1;
@@ -150,6 +151,8 @@ int main(int argc, const char **argv) {
           fclose(f);
 
       }
+
+
       if (options.dfa_graph) {
           char dot_name[1024];
           snprintf(dot_name, 1024, "%s_%s.naive.dot", files[i], name);

@@ -18,7 +18,7 @@ create a text file (here `regex.txt`) in the following format:
 
 ```
 foo foo
-number 0|(1|2|3|4|5|6|7|8|9)(0|1|2|3|4|5|6|7|8|9)*
+number 0|[1-9][0-9]*
 ```
 
 where the first word of each line is an identifier, and the string starting after the
@@ -46,12 +46,12 @@ Code generation can be skipped with the `-n` flag.
 - `()` parentheses explicitly encode associativity:
     - `a(b|c)*` matches "`a`" followed by any string of "`b`"s and/or "`c`"s.
     - `a(b|c*)` matches "`ab`" followed by either a single "`b`" or any number of "`c`"s.
+- the above characters can be matched literally if preceded by a `\`.
+- `[0-9]` matches any character whose representation as an integer is between that of `0` and `9`, extremes included.
 - any other character is interpreted as a literal.
 
 ## Caveats:
 
-- no escaping of parentheses.
-- no character ranges 
 - no complement operation.
 
 ... yet.
