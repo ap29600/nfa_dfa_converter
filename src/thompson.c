@@ -85,23 +85,46 @@ void concatenate_regex(struct nfa *a, struct nfa *b) {
   *b = (struct nfa){0};
 }
 
+nfa clone_regex(const nfa *n) {
+  state_id_t offset = n->end_id;
+  nfa result = {
+      .start_id = n->start_id + offset,
+      .end_id = n->end_id + offset,
+      .t_matrix = L_VEC(),
+  };
+
+  ITER(line, l, &n->t_matrix) {
+    line ll = {
+        .id = l->id + offset,
+        .paths = P_VEC(),
+    };
+    ITER(path, p, &l->paths) {
+      path pp = {.trigger = p->trigger, .end_state = p->end_state + offset};
+      vec_insert_sorted(&ll.paths, &pp);
+    }
+    vec_insert_sorted(&result.t_matrix, &ll);
+  }
+
+  return result;
+}
 
 const char escape_sequences[] = {
-  ['n'] = '\n',
-  ['t'] = '\t',
-  ['s'] = ' ',
-  ['('] = '(',
-  [')'] = ')',
-  ['*'] = '*',
-  ['['] = '[',
-  [']'] = ']',
+    ['n'] = '\n',
+    ['t'] = '\t',
+    ['s'] = ' ',
+    ['('] = '(',
+    [')'] = ')',
+    ['*'] = '*',
+    ['+'] = '+',
+    ['['] = '[',
+    [']'] = ']',
 };
-
 
 struct nfa regex_to_nfa(const char *regex, size_t regex_len) {
 
   struct nfa result = {.t_matrix = L_VEC(), .start_id = 0, .end_id = 0};
   struct nfa tmp = {.t_matrix = L_VEC(), .start_id = 0, .end_id = 0};
+  struct nfa tmp2;
 
   size_t depth;
   size_t j;
@@ -110,7 +133,7 @@ struct nfa regex_to_nfa(const char *regex, size_t regex_len) {
 
     if (escaped) {
       escaped = 0;
-      
+
       char c = escape_sequences[(unsigned char)regex[i]];
 
       if (c == '\0') {
@@ -141,7 +164,11 @@ struct nfa regex_to_nfa(const char *regex, size_t regex_len) {
       if (tmp.t_matrix.size > 0)
         concatenate_regex(&result, &tmp);
       else if (result.t_matrix.size == 0) {
-        result.t_matrix = L_VEC({.id = 1, .paths = P_VEC({ .trigger = '\0', .end_state = 2, })});
+        result.t_matrix = L_VEC({.id = 1,
+                                 .paths = P_VEC({
+                                     .trigger = '\0',
+                                     .end_state = 2,
+                                 })});
         result.start_id = 1;
         result.end_id = 2;
       }
@@ -205,28 +232,28 @@ struct nfa regex_to_nfa(const char *regex, size_t regex_len) {
       break;
     case '[':
       do {
-        char start = regex[++ i];
+        char start = regex[++i];
         assert(regex[++i] == '-');
-        char end = regex[++ i];
-        assert(regex[++ i] == ']');
+        char end = regex[++i];
+        assert(regex[++i] == ']');
 
-        if(tmp.t_matrix.size > 0)
+        if (tmp.t_matrix.size > 0)
           concatenate_regex(&result, &tmp);
 
         line l = {
-          .id = result.end_id + 1,
-          .paths = P_VEC(),
-        }; 
+            .id = result.end_id + 1,
+            .paths = P_VEC(),
+        };
 
-        for(char c = start; c <= end; c++) {
+        for (char c = start; c <= end; c++) {
           path p = {.trigger = c, .end_state = result.end_id + 2};
           vec_insert_sorted(&l.paths, &p);
         }
 
-        tmp = (struct nfa) {
-          .t_matrix = L_VEC(l),
-          .start_id = result.end_id + 1,
-          .end_id = result.end_id + 2,
+        tmp = (struct nfa){
+            .t_matrix = L_VEC(l),
+            .start_id = result.end_id + 1,
+            .end_id = result.end_id + 2,
         };
 
       } while (0);
@@ -234,10 +261,14 @@ struct nfa regex_to_nfa(const char *regex, size_t regex_len) {
 
     case ']':
       assert(0 && "Closing square brackets without opening.");
-      
 
     case '*':
       loop_regex(&tmp);
+      break;
+    case '+':
+      tmp2 = clone_regex(&tmp);
+      loop_regex(&tmp2);
+      concatenate_regex(&tmp, &tmp2);
       break;
     case '\0':
       assert(0 && "The string is shorter than expected");

@@ -51,10 +51,10 @@ typedef struct {
 } dfa;
 
 void transition_matrix_insert(vector*T, state_id_t start, unsigned char c, state_id_t dest);
-bit_set eps_closure_(nfa *N, const bit_set *in);
-vector eps_closure(nfa *N, const vector *in);
-bit_set delta_(nfa *N, bit_set *q, unsigned char c);
-vector delta(nfa *N, vector *q, unsigned char c);
+unsigned transition_matrix_find(vector *m, state_id_t start, unsigned char dest);
+
+bit_set eps_closure(nfa *N, const bit_set *in);
+bit_set delta(nfa *N, bit_set *q, unsigned char c);
 dfa *to_dfa(nfa *N);
 
 dfa *minimize(dfa *D);

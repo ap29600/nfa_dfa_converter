@@ -66,7 +66,7 @@ dfa *to_dfa(nfa *N) {
   bit_set n0 = {0};
   set_insert(&n0, N->start_id);
 
-  bit_set q0 = eps_closure_(N, &n0);
+  bit_set q0 = eps_closure(N, &n0);
 
   vector Q = S_VEC(err_state, q0);
   vector Wl = S_VEC(q0);
@@ -84,11 +84,11 @@ dfa *to_dfa(nfa *N) {
 
     for (unsigned c = 1; c < 256; c++) {
 
-      bit_set tmp = delta_(N, &q, c);
+      bit_set tmp = delta(N, &q, c);
       if (empty(&tmp))
         continue;
 
-      bit_set t = eps_closure_(N, &tmp);
+      bit_set t = eps_closure(N, &tmp);
       bit_set *dest_p = vec_find(&Q, &t);
 
       state_id_t id_dest;
@@ -122,23 +122,7 @@ dfa *to_dfa(nfa *N) {
   return result;
 }
 
-vector delta(nfa *N, vector *q, unsigned char c) {
-  vector result = SET();
-  ITER(state_id_t, id, q) {
-    line key = {.id = *id};
-    line *l = vec_find(&N->t_matrix, &key);
-    if (l) {
-      ITER(path, p, &l->paths) {
-        if (p->trigger == c) {
-          vec_insert_sorted(&result, &p->end_state);
-        }
-      }
-    }
-  }
-  return result;
-}
-
-bit_set delta_(nfa *N, bit_set *q, unsigned char c) {
+bit_set delta(nfa *N, bit_set *q, unsigned char c) {
   bit_set result = {0};
   ITERATE_BITSET(id, *q) {
     line key = {.id = id};
@@ -154,7 +138,7 @@ bit_set delta_(nfa *N, bit_set *q, unsigned char c) {
   return result;
 }
 
-bit_set eps_closure_(nfa *N, const bit_set *in) {
+bit_set eps_closure(nfa *N, const bit_set *in) {
   bit_set result = *in;
   bit_set worklist = *in;
 
@@ -173,37 +157,6 @@ bit_set eps_closure_(nfa *N, const bit_set *in) {
       }
     }
   }
-  return result;
-}
-
-vector eps_closure(nfa *N, const vector *in) {
-  assert(in->elem_size == sizeof(state_id_t));
-
-  // TODO: introduce vector clone to make this better.
-  vector result = SET();
-  vector work_list = SET();
-
-  ITER(state_id_t, i, in) {
-    vec_insert_sorted(&result, i);
-    vec_insert(&work_list, i);
-  }
-
-  while (work_list.size > 0) {
-    state_id_t start_id = 0;
-    vec_pop_back(&work_list, &start_id);
-
-    line key = {.id = start_id};
-    line *l = vec_find(&N->t_matrix, &key);
-    if (l) {
-      ITER(path, p, &l->paths) {
-        if (p->trigger == '\0' && !vec_find_sorted(&result, &p->end_state)) {
-          vec_insert_sorted(&result, &p->end_state);
-          vec_insert(&work_list, &p->end_state);
-        }
-      }
-    }
-  }
-  destroy(&work_list);
   return result;
 }
 

@@ -43,6 +43,7 @@ Code generation can be skipped with the `-n` flag.
 ## Supported regex syntax:
 - `foo|bar`  matches either "`foo`" or "`bar`".
 - `bar*` matches "`ba`" followed by any number of "`r`"s.
+- `bar+` matches "`bar`" followed by any number of extra "`r`"s.
 - `()` parentheses explicitly encode associativity:
     - `a(b|c)*` matches "`a`" followed by any string of "`b`"s and/or "`c`"s.
     - `a(b|c*)` matches "`ab`" followed by either a single "`b`" or any number of "`c`"s.
